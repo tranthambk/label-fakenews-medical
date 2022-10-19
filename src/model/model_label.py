@@ -68,7 +68,11 @@ def detect_fakenews():
     name_collection = cf.NAME_COLLECTION
 
     db = client[name_db][name_collection]
-    df_not_predict =  pd.DataFrame(list(db.find({"is_medical": {"$eq": True}, "is_fakenew": {"$exists": 0}})))
+
+    name_db_predict = "fake-news"
+    name_collection_predict = "testlabel"
+    db_predict = client[name_db_predict][name_collection_predict]
+    df_not_predict =  pd.DataFrame(list(db_predict.find({"is_medical": {"$eq": True}, "is_fakenew": {"$exists": 0}})))
     df_not_predict.shape
     if df_not_predict.shape[0] > 0:
         df = pd.DataFrame(list(db.find({"is_medical": {"$eq": True}, "is_fakenew": {"$exists": 1}})))
@@ -115,6 +119,8 @@ def detect_fakenews():
         texts_new = preprocess(list(df_not_predict.text.values))
         texts_new_tfidf = tf_vectorizer.transform(texts_new)
         print(texts_new_tfidf[:2])
+
+
         y_new_pred = clf.predict(texts_new_tfidf)
         print(Counter(y_new_pred))
         df_not_predict["y_pred"] = y_new_pred
@@ -127,15 +133,15 @@ def detect_fakenews():
         # print(type(ls_id[0]))
         if len(ls_id) > 0:
 
-            print("NUMBER DOCUMENT: ", db.count_documents({"is_medical": {"$eq": True}, "is_fakenew": {"$exists": 0}, "post_id": {"$in": ls_id} }))
-            db.update_many({"is_medical": {"$eq": True}, "is_fakenew": {"$exists": 0}, "post_id": {"$in": ls_id} }, {"$set": {"is_fakenew": True, "is_auto_fakenew": True, "is_verify_fakenew": False } })
+            print("NUMBER DOCUMENT: ", db_predict.count_documents({"is_medical": {"$eq": True}, "is_fakenew": {"$exists": 0}, "post_id": {"$in": ls_id} }))
+            db_predict.update_many({"is_medical": {"$eq": True}, "is_fakenew": {"$exists": 0}, "post_id": {"$in": ls_id} }, {"$set": {"is_fakenew": True, "is_auto_fakenew": True, "is_verify_fakenew": False } })
             # df_new = pd.DataFrame(db.find({"is_medical": {"$exists": False}, "post_id": {"$in": ls_id} }))
             # df_new
         ls_id = list(df_not_predict[df_not_predict.y_pred == 0].post_id.astype(str).values)
         if len(ls_id) > 0:
 
-            print("NUMBER DOCUMENT: ", db.count_documents({"is_medical": {"$eq": True}, "is_fakenew": {"$exists": 0}, "post_id": {"$in": ls_id} }))
-            db.update_many({"is_medical": {"$eq": True}, "is_fakenew": {"$exists": 0}, "post_id": {"$in": ls_id} }, {"$set": {"is_fakenew": False, "is_auto_fakenew": True, "is_verify_fakenew": False } })
+            print("NUMBER DOCUMENT: ", db_predict.count_documents({"is_medical": {"$eq": True}, "is_fakenew": {"$exists": 0}, "post_id": {"$in": ls_id} }))
+            db_predict.update_many({"is_medical": {"$eq": True}, "is_fakenew": {"$exists": 0}, "post_id": {"$in": ls_id} }, {"$set": {"is_fakenew": False, "is_auto_fakenew": True, "is_verify_fakenew": False } })
 
 
 
@@ -144,14 +150,24 @@ def detect_medical():
 
 
     client = get_client()
+    #data train medical với fakenews
+    #db_name: fakenews, collection: fbpost
+
+    #data predict de labe: 
 
     # Show existing database names
     name_db = cf.NAME_DB
     name_collection = cf.NAME_COLLECTION
 
     db = client[name_db][name_collection]
-    df_not_predict =  pd.DataFrame(list(db.find({"is_medical": {"$exists": 0}})))
+
+    name_db_predict = "fake-news"
+    name_collection_predict = "testlabel"
+    db_predict = client[name_db_predict][name_collection_predict]
+    df_not_predict =  pd.DataFrame(list(db_predict.find({"is_medical": {"$exists": 0}})))
+
     if df_not_predict.shape[0] > 0:
+
         df = pd.DataFrame(list(db.find({"post_id": {"$exists": True}})))
         print(df.shape)
         print(df)
@@ -223,18 +239,16 @@ def detect_medical():
         ls_id = list(df_not_predict[df_not_predict.y_pred == 1].post_id.astype(str).values)
         print(len(ls_id))
         print("LS ID: ", ls_id)
+        print(df_not_predict)
         # print(type(ls_id[0]))
         if len(ls_id) > 0:
 
-            print("NUMBER DOCUMENT: ", db.count_documents({"is_medical": {"$eq": True}, "post_id": {"$in": ls_id} }))
-            db.update_many({"is_medical": {"$exists": 0}, "post_id": {"$in": ls_id} }, {"$set": {"is_medical": True, "is_auto_medical": True, "is_verify_medical": False } })
-            # df_new = pd.DataFrame(db.find({"is_medical": {"$exists": False}, "post_id": {"$in": ls_id} }))
-            # df_new
+            print("NUMBER DOCUMENT: ", db_predict.count_documents({"is_medical": {"$eq": True}, "post_id": {"$in": ls_id} }))
+            db_predict.update_many({"is_medical": {"$exists": 0}, "post_id": {"$in": ls_id} }, {"$set": {"is_medical": True, "is_auto_medical": True, "is_verify_medical": False } })
         ls_id = list(df_not_predict[df_not_predict.y_pred == 0].post_id.astype(str).values)
         if len(ls_id) > 0:
-
-            print("NUMBER DOCUMENT: ", db.count_documents({"is_medical": {"$eq": True}, "is_fakenew": {"$exists": 0}, "post_id": {"$in": ls_id} }))
-            db.update_many({"is_medical": {"$eq": True}, "is_fakenew": {"$exists": 0}, "post_id": {"$in": ls_id} }, {"$set": {"is_medical": False, "is_auto_medical": True, "is_verify_medical": False } })
+            print("NUMBER DOCUMENT: ", db_predict.count_documents({"is_medical": {"$eq": True}, "is_fakenew": {"$exists": 0}, "post_id": {"$in": ls_id} }))
+            db_predict.update_many({"is_medical": {"$eq": True}, "is_fakenew": {"$exists": 0}, "post_id": {"$in": ls_id} }, {"$set": {"is_medical": False, "is_auto_medical": True, "is_verify_medical": False } })
 
 
 
